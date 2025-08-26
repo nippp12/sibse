@@ -114,6 +114,7 @@ class BroadcastResource extends Resource
                     ->label('Jenis Pengumuman'),
             ])
             ->actions([
+                Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
             ])
@@ -148,6 +149,7 @@ class BroadcastResource extends Resource
             'index' => Pages\ListBroadcasts::route('/'),
             // 'create' => Pages\CreateBroadcast::route('/create'),
             'edit' => Pages\EditBroadcast::route('/{record}/edit'),
+            // 'view' => Pages\ViewBroadcast::route('/{record}'),
         ];
     }
 }

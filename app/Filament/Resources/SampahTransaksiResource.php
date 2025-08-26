@@ -79,6 +79,12 @@ class SampahTransaksiResource extends Resource
                             ->required()
                             ->placeholder('Masukkan jumlah stok (misal: 10.5)'),
 
+                        TextInput::make('harga')
+                            ->label('Harga Saat Transaksi')
+                            ->numeric()
+                            ->required()
+                            ->placeholder('Masukkan harga saat transaksi'),
+
                         Textarea::make('deskripsi')
                             ->label('Deskripsi')
                             ->rows(3)
@@ -110,6 +116,18 @@ class SampahTransaksiResource extends Resource
                     ->formatStateUsing(fn (string $state, SampahTransaksi $record): string =>
                         $state . ' ' . ($record->sampah->satuan->nama ?? ''))
                     ->sortable(),
+
+                Tables\Columns\TextColumn::make('harga')
+                    ->label('Harga Saat Transaksi')
+                    ->money('IDR')
+                    ->sortable()
+                    ->formatStateUsing(function ($state, $record) {
+                        // Tampilkan harga dari transaksi jika berbeda dengan harga di tabel sampah
+                        if ($state !== null && $state != $record->sampah->harga) {
+                            return $state;
+                        }
+                        return $record->sampah->harga ?? 0;
+                    }),
                 Tables\Columns\TextColumn::make('deskripsi')
                     ->label('Deskripsi')
                     ->limit(50)

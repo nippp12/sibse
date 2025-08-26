@@ -3,7 +3,6 @@
 namespace App\Providers\Filament;
 
 use Filament\Http\Middleware\Authenticate;
-use BezhanSalleh\FilamentShield\FilamentShieldPlugin;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
@@ -18,6 +17,9 @@ use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
+use Filament\Navigation\NavigationGroup;
+use Filament\Navigation\NavigationItem;
+use App\Livewire\Home;
 
 class AdminPanelProvider extends PanelProvider
 {
@@ -27,7 +29,7 @@ class AdminPanelProvider extends PanelProvider
             ->default()
             ->sidebarCollapsibleOnDesktop()
             ->id('admin')
-            ->path('admin')
+            ->path('dashboard')
             ->login()
             ->colors([
                 'primary' => Color::Lime,
@@ -39,8 +41,7 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
             ->widgets([
-                Widgets\AccountWidget::class,
-                Widgets\FilamentInfoWidget::class,
+                \App\Filament\Widgets\DashboardStats::class,
             ])
             ->middleware([
                 EncryptCookies::class,
@@ -54,10 +55,19 @@ class AdminPanelProvider extends PanelProvider
                 DispatchServingFilamentEvent::class,
             ])
             ->plugins([
-                FilamentShieldPlugin::make(),
+                \BezhanSalleh\FilamentShield\FilamentShieldPlugin::make(),
             ])
             ->authMiddleware([
-                Authenticate::class,
+                'auth', // Use Laravel's default 'auth' middleware (e.g., from Breeze)
+            ])
+            // The 'Back to Home' item is now assigned to the 'Bottom Navigation Group'.
+            ->navigationItems([
+                NavigationItem::make('Back to Home')
+                    ->url(url('/')) // Directs to the root URL of your application
+                    ->icon('heroicon-o-arrow-uturn-left')
+                    ->group('Bottom Navigation Group') // Assign this item to the specific group
+                    ->sort(1) // Sort within its own group (since it's the only item here, 1 is fine)
+                    ->isActiveWhen(fn () => request()->is('/')),
             ]);
     }
 }

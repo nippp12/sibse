@@ -4,8 +4,8 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\PenarikanResource\Pages;
 use App\Models\Penarikan;
-use App\Models\User; // Import model User
-use App\Models\Kas;  // Import model Kas
+use App\Models\User;
+use App\Models\Kas;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -13,22 +13,25 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
-use Illuminate\Validation\Rule; // Pastikan Rule di-import jika diperlukan
+use Illuminate\Support\Facades\Auth; // Import Auth facade
 
 class PenarikanResource extends Resource
 {
     protected static ?string $model = Penarikan::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-currency-dollar';
-    // protected static ?string $navigationLabel = 'Penarikan Dana';
-    protected static ?string $navigationGroup = 'Riwayat Transaksi';
-
-    // Menyesuaikan label model untuk breadcrumbs dan UI lainnya
     protected static ?string $modelLabel = 'Pengajuan Penarikan';
-    protected static ?string $pluralModelLabel = 'Pengajuan Penarikan'; // Ini akan mempengaruhi breadcrumb "Penarikans" menjadi "Penarikan Dana"
+    protected static ?string $pluralModelLabel = 'Pengajuan Penarikan';
+    protected static ?string $navigationGroup = 'Riwayat Transaksi';
 
     public static function form(Form $form): Form
     {
+        // Mendapatkan user yang sedang login
+        /** @var \App\Models\User $currentUser */ // BARU: Tambahkan ini untuk hint Intelephense
+        $currentUser = Auth::user();
+        // Mengecek apakah user yang sedang login adalah nasabah
+        $isNasabah = $currentUser && $currentUser->hasRole('nasabah');
+
         return $form
             ->schema([
                 Forms\Components\Select::make('user_id')
@@ -37,15 +40,26 @@ class PenarikanResource extends Resource
                     ->searchable()
                     ->preload()
                     ->required()
-                    ->reactive() // Penting agar field jumlah bisa bereaksi terhadap perubahan user
-                    ->afterStateUpdated(fn (Forms\Set $set) => $set('jumlah', null)), // Kosongkan jumlah saat user berubah
+                    ->reactive()
+                    ->afterStateUpdated(fn (Forms\Set $set) => $set('jumlah', null))
+                    // Set nilai default user_id jika user adalah nasabah
+                    ->default(fn () => $isNasabah ? $currentUser->id : null)
+                    // Disarankan untuk tetap men-disable ini agar nasabah tidak bisa memilih user lain
+                    // ->disabled(fn () => $isNasabah)
+                    // Filter opsi user jika user login adalah 'nasabah'
+                    ->options(function () use ($isNasabah, $currentUser) {
+                        if ($isNasabah) {
+                            return [$currentUser->id => $currentUser->username];
+                        }
+                        return User::pluck('username', 'id'); // Untuk admin, tampilkan semua
+                    }),
 
                 Forms\Components\TextInput::make('jumlah')
                     ->label('Jumlah Nominal')
                     ->numeric()
                     ->required()
                     ->prefix('Rp')
-                    ->minValue(10000) // Minimal penarikan Rp 10.000
+                    ->minValue(10000)
                     ->helperText(function (Forms\Get $get) {
                         $userId = $get('user_id');
                         if ($userId) {
@@ -54,48 +68,48 @@ class PenarikanResource extends Resource
                         }
                         return 'Pilih pengguna untuk melihat saldo.';
                     })
-                    // Mengembalikan logika validasi langsung ke dalam rules()
-                    ->rules(function (Forms\Get $get, Forms\Set $set, $state) use ($form) { // Tambah $set dan $state
+                    // BARU: Nonaktifkan field jumlah jika statusnya sudah 'approved'
+                    ->disabled(fn (?Penarikan $record) => $record && $record->status === 'approved')
+                    ->rules(function (Forms\Get $get, Forms\Set $set, $state) use ($form) {
                         return [
                             'required',
                             'numeric',
                             'min:10000',
-                            // Aturan validasi kustom sebagai closure langsung
                             function (string $attribute, $value, \Closure $fail) use ($form, $get) {
-                                $userId = $get('user_id'); // Ambil user_id dari form state
+                                $userId = $get('user_id');
                                 $user = $userId ? User::find($userId) : null;
-                                $amount = (float) $value; // Nilai 'jumlah' yang sedang divalidasi
+                                $amount = (float) $value;
 
-                                $record = $form->getRecord(); // Dapatkan record yang sedang diedit (jika ada)
-
-                                // Dapatkan status LAMA dari record yang dimuat (sebelum perubahan form)
+                                $record = $form->getRecord();
                                 $originalStatus = $record ? $record->status : null;
-                                // Dapatkan status BARU dari input form
                                 $currentStatus = $get('status');
 
-                                // Cek apakah ini adalah pengeditan record yang sudah ada
-                                // DAN statusnya sedang dibalik dari 'approved' menjadi 'pending' atau 'rejected'
+                                // Logika untuk pembalikan status dari 'approved'
+                                // Ini memungkinkan admin untuk "mengembalikan" saldo jika status diubah dari approved
                                 if ($record && $record->exists && $originalStatus === 'approved' &&
                                     ($currentStatus === 'pending' || $currentStatus === 'rejected')) {
-                                    // Jika kondisi ini terpenuhi, lewati validasi saldo karena ini adalah pembalikan
                                     return;
                                 }
 
-                                // --- Validasi normal (jika bukan pembalikan dari 'approved') ---
-
-                                // Validasi: Saldo pengguna harus cukup
-                                if ($user && $amount > $user->saldo) {
-                                    $fail("Jumlah penarikan (Rp" . number_format($amount, 2, ',', '.') . ") melebihi saldo pengguna (Rp" . number_format($user->saldo, 2, ',', '.') . ").");
+                                if (!$user) {
+                                    $fail("Pengguna tidak ditemukan.");
+                                    return;
                                 }
 
-                                // Validasi: Saldo kas harus cukup
-                                $kas = Kas::first(); // Ambil record Kas global
+                                if ($amount > $user->saldo) {
+                                    $fail("Jumlah penarikan (Rp" . number_format($amount, 2, ',', '.') . ") melebihi saldo pengguna (Rp" . number_format($user->saldo, 2, ',', '.') . ").");
+                                    return;
+                                }
+
+                                $kas = Kas::first();
+
                                 if (!$kas) {
                                     $fail("Informasi Kas Utama tidak ditemukan. Hubungi administrator.");
-                                    return; // Penting untuk return setelah $fail jika tidak ingin melanjutkan validasi
+                                    return;
                                 }
-                                if ($amount > $kas->total_saldo) {
-                                    $fail("Jumlah penarikan (Rp" . number_format($amount, 2, ',', '.') . ") melebihi saldo Kas Utama (Rp" . number_format($kas->total_saldo, 2, ',', '.') . ").");
+                                
+                                if ($amount > ($kas->total_saldo ?? 0)) {
+                                    $fail("Jumlah penarikan (Rp" . number_format($amount, 2, ',', '.') . ") melebihi saldo Kas Utama (Rp" . number_format($kas->total_saldo ?? 0 , 2, ',', '.') . ").");
                                 }
                             },
                         ];
@@ -111,30 +125,24 @@ class PenarikanResource extends Resource
                     ->default('pending')
                     ->required()
                     ->in(['pending', 'approved', 'rejected'])
-                    ->disabledOn('create') // Admin yang harus mengubah status, bukan pengguna yang membuat pengajuan
+                    // Nasabah tidak bisa mengubah status. Admin yang bisa.
+                    ->disabled(fn () => $isNasabah)
                     ->columnSpanFull(),
 
                 Forms\Components\DateTimePicker::make('tanggal_pengajuan')
                     ->label('Tanggal Pengajuan')
                     ->default(now())
-                    ->disabled() // Tidak bisa diubah
+                    ->disabled()
                     ->required(),
-
-                Forms\Components\DateTimePicker::make('created_at')
-                    ->label('Dibuat Pada')
-                    ->disabled()
-                    ->hiddenOn('create')
-                    ->hiddenOn('edit'),
-                Forms\Components\DateTimePicker::make('updated_at')
-                    ->label('Terakhir Diperbarui')
-                    ->disabled()
-                    ->hiddenOn('create')
-                    ->hiddenOn('edit'),
             ])->columns(2);
     }
 
     public static function table(Table $table): Table
     {
+        // Mendapatkan user yang sedang login
+        /** @var \App\Models\User $currentUser */ // BARU: Tambahkan ini untuk hint Intelephense
+        $currentUser = Auth::user();
+
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('id')
@@ -190,19 +198,32 @@ class PenarikanResource extends Resource
                         'rejected' => 'Ditolak',
                     ]),
 
+                // Filter user_id disembunyikan untuk nasabah
                 Tables\Filters\SelectFilter::make('user_id')
                     ->label('Filter Pengguna')
                     ->relationship('user', 'username')
                     ->searchable()
-                    ->preload(),
+                    ->preload()
+                    ->hidden(fn () => $currentUser?->hasRole('nasabah')), // Gunakan $currentUser di sini
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\ViewAction::make(),
+                Tables\Actions\EditAction::make()
+                    ->hidden(function ($record) use ($currentUser) { // Tambahkan $currentUser di sini
+                        return $currentUser?->hasRole('nasabah') && $record->status === 'approved';
+                    }),
+            
+                Tables\Actions\DeleteAction::make()
+                    ->hidden(function ($record) use ($currentUser) { // Tambahkan $currentUser di sini
+                        return $currentUser?->hasRole('nasabah') && $record->status === 'approved';
+                    }),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->hidden(function () use ($currentUser) { // Tambahkan $currentUser di sini
+                            return $currentUser?->hasRole('nasabah');
+                        }),
                 ]),
             ]);
     }
@@ -214,12 +235,32 @@ class PenarikanResource extends Resource
         ];
     }
 
+    // Ini adalah bagian TERPENTING untuk memfilter data berdasarkan role
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+        /** @var \App\Models\User $user */ // BARU: Tambahkan ini untuk hint Intelephense
+        $user = Auth::user();
+
+        if ($user && $user->hasRole('nasabah')) {
+            // Jika user adalah nasabah, hanya tampilkan pengajuan miliknya
+            return $query->where('user_id', $user->id);
+        }
+
+        // Untuk user selain nasabah (admin, dll), tampilkan semua pengajuan
+        return $query;
+    }
+
     public static function getPages(): array
     {
+        // Mendapatkan user yang sedang login
+        /** @var \App\Models\User $currentUser */ // BARU: Tambahkan ini untuk hint Intelephense
+        $currentUser = Auth::user();
+
         return [
             'index' => Pages\ListPenarikans::route('/'),
-            'create' => Pages\CreatePenarikan::route('/create'),
-            'edit' => Pages\EditPenarikan::route('/{record}/edit'),
+            // 'create' => Pages\CreatePenarikan::route('/create'),
+            // 'edit' => Pages\EditPenarikan::route('/{record}/edit'),
         ];
     }
 }

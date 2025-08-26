@@ -68,46 +68,59 @@ new #[Layout('components.layouts.auth')] class extends Component {
     }
 }; ?>
 
-<div class="flex flex-col gap-6">
-    <x-auth-header :title="__('Reset password')" :description="__('Please enter your new password below')" />
-
-    <!-- Session Status -->
-    <x-auth-session-status class="text-center" :status="session('status')" />
-
-    <form wire:submit="resetPassword" class="flex flex-col gap-6">
-        <!-- Email Address -->
-        <flux:input
-            wire:model="email"
-            :label="__('Email')"
-            type="email"
-            required
-            autocomplete="email"
-        />
-
-        <!-- Password -->
-        <flux:input
-            wire:model="password"
-            :label="__('Password')"
-            type="password"
-            required
-            autocomplete="new-password"
-            :placeholder="__('Password')"
-        />
-
-        <!-- Confirm Password -->
-        <flux:input
-            wire:model="password_confirmation"
-            :label="__('Confirm password')"
-            type="password"
-            required
-            autocomplete="new-password"
-            :placeholder="__('Confirm password')"
-        />
-
-        <div class="flex items-center justify-end">
-            <flux:button type="submit" variant="primary" class="w-full">
-                {{ __('Reset password') }}
-            </flux:button>
+<div class="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 px-4 py-8">
+    <div class="w-full max-w-6xl bg-white dark:bg-zinc-800 shadow-lg rounded-lg overflow-hidden grid grid-cols-1 md:grid-cols-2">
+        <div class="hidden md:flex flex-col items-center justify-center bg-green-600 text-white p-10">
+            <h2 class="text-3xl font-bold mb-4">{{ __('Reset password') }}</h2>
+            <p class="text-sm text-green-100 text-center">
+                {{ __('Please enter your new password below') }}
+            </p>
+            <img src="{{ asset('storage/images/enviro.png') }}"
+                 alt="Ilustrasi Bank Sampah" class="mt-8 w-full max-w-sm md:max-w-md h-auto object-contain">
         </div>
-    </form>
+
+        <div class="p-8">
+            <x-auth-header :title="__('Reset password')" :description="__('Please enter your new password below')" />
+
+            <!-- Session Status -->
+            <x-auth-session-status class="text-center mb-4" :status="session('status')" />
+
+            <form wire:submit="resetPassword" class="flex flex-col gap-6">
+                <!-- Email Address -->
+                <flux:input
+                    wire:model="email"
+                    :label="__('Email')"
+                    type="email"
+                    required
+                    autocomplete="email"
+                />
+
+                <!-- Password -->
+                <flux:input
+                    wire:model="password"
+                    :label="__('Password')"
+                    type="password"
+                    required
+                    autocomplete="new-password"
+                    :placeholder="__('Password')"
+                />
+
+                <!-- Confirm Password -->
+                <flux:input
+                    wire:model="password_confirmation"
+                    :label="__('Confirm password')"
+                    type="password"
+                    required
+                    autocomplete="new-password"
+                    :placeholder="__('Confirm password')"
+                />
+
+                <div class="flex items-center justify-end">
+                    <flux:button type="submit" variant="primary" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                        {{ __('Reset password') }}
+                    </flux:button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>

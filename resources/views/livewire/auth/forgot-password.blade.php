@@ -22,28 +22,45 @@ new #[Layout('components.layouts.auth')] class extends Component {
     }
 }; ?>
 
-<div class="flex flex-col gap-6">
-    <x-auth-header :title="__('Forgot password')" :description="__('Enter your email to receive a password reset link')" />
+<div class="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 px-4 py-8">
+    <div class="w-full max-w-6xl bg-white dark:bg-zinc-800 shadow-lg rounded-lg overflow-hidden grid grid-cols-1 md:grid-cols-2">
+        <div class="hidden md:flex flex-col items-center justify-center bg-green-600 text-white p-10">
+            <h2 class="text-3xl font-bold mb-4">{{ __('Forgot password') }}</h2>
+            <p class="text-sm text-green-100 text-center">
+                {{ __('Enter your email to receive a password reset link') }}
+            </p>
+            <img src="{{ asset('storage/images/enviro.png') }}"
+                 alt="Ilustrasi Bank Sampah" class="mt-8 w-full max-w-sm md:max-w-md h-auto object-contain">
+        </div>
 
-    <!-- Session Status -->
-    <x-auth-session-status class="text-center" :status="session('status')" />
+        <div class="p-8">
+            <x-auth-header :title="__('Forgot password')" :description="__('Enter your email to receive a password reset link')" />
 
-    <form wire:submit="sendPasswordResetLink" class="flex flex-col gap-6">
-        <!-- Email Address -->
-        <flux:input
-            wire:model="email"
-            :label="__('Email Address')"
-            type="email"
-            required
-            autofocus
-            placeholder="email@example.com"
-        />
+            <!-- Session Status -->
+            <x-auth-session-status class="text-center mb-4" :status="session('status')" />
 
-        <flux:button variant="primary" type="submit" class="w-full">{{ __('Email password reset link') }}</flux:button>
-    </form>
+            <form wire:submit="sendPasswordResetLink" class="flex flex-col gap-6">
+                <!-- Email Address -->
+                <flux:input
+                    wire:model="email"
+                    :label="__('Email Address')"
+                    type="email"
+                    required
+                    autofocus
+                    placeholder="email@example.com"
+                />
 
-    <div class="space-x-1 text-center text-sm text-zinc-400">
-        {{ __('Or, return to') }}
-        <flux:link :href="route('login')" wire:navigate>{{ __('log in') }}</flux:link>
+                <flux:button variant="primary" type="submit" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                    {{ __('Email password reset link') }}
+                </flux:button>
+            </form>
+
+            <div class="space-x-1 text-center text-sm text-zinc-600 dark:text-zinc-400 mt-4">
+                {{ __('Or, return to') }}
+                <flux:link :href="route('login')" wire:navigate class="text-green-600 dark:text-green-400 hover:underline">
+                    {{ __('log in') }}
+                </flux:link>
+            </div>
+        </div>
     </div>
 </div>

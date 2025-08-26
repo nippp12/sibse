@@ -25,6 +25,7 @@ use Filament\Tables\Filters\Filter;
 use Illuminate\Support\Facades\Auth;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
+use App\Rules\StockAvailableRule;
 use Illuminate\Database\Eloquent\Builder;
 use Carbon\Carbon;
 
@@ -180,7 +181,12 @@ class PenjualanResource extends Resource
                                     ->numeric()
                                     ->step('0.01')
                                     ->required()
+                                    ->minValue(0) // Tambahkan validasi agar qty tidak bisa minus
                                     ->reactive()
+                                    ->rule(function (Get $get) {
+                                        $sampahId = $get('sampah_id');
+                                        return new StockAvailableRule($sampahId);
+                                    })
                                     ->afterStateUpdated(fn (Set $set, Get $get) => static::updateTotalHarga($set, $get))
                                     ->suffix(fn (Get $get) => $get('qty_suffix') ?? ''),
 

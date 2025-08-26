@@ -22,11 +22,13 @@ class SampahTransaksi extends Model
         'deskripsi',
         'transactable_id',
         'transactable_type',
+        'harga',
     ];
 
     protected $casts = [
         'jumlah' => 'decimal:2',
         'tipe'   => 'string',
+        'harga'  => 'decimal:2',
     ];
 
     /*
@@ -56,6 +58,11 @@ class SampahTransaksi extends Model
         static::created(function (SampahTransaksi $sampahTransaksi) {
             Log::debug("SampahTransaksi CREATED (Event Fired). ID: {$sampahTransaksi->id}, Sampah ID: {$sampahTransaksi->sampah_id}, Jumlah: {$sampahTransaksi->jumlah}, Tipe: {$sampahTransaksi->tipe}");
             self::applyStockChange($sampahTransaksi, $sampahTransaksi->jumlah);
+            // Pastikan harga tersimpan saat create
+            if (is_null($sampahTransaksi->harga)) {
+                $sampahTransaksi->harga = $sampahTransaksi->sampah->harga ?? 0;
+                $sampahTransaksi->saveQuietly();
+            }
         });
 
         static::updated(function (SampahTransaksi $sampahTransaksi) {
@@ -74,6 +81,11 @@ class SampahTransaksi extends Model
                     self::applyStockChange($sampahTransaksi, $sampahTransaksi->jumlah);
                 });
             }
+            // Pastikan harga tersimpan saat update jika belum ada
+            if (is_null($sampahTransaksi->harga)) {
+                $sampahTransaksi->harga = $sampahTransaksi->sampah->harga ?? 0;
+                $sampahTransaksi->saveQuietly();
+            }
         });
 
         static::deleted(function (SampahTransaksi $sampahTransaksi) {
@@ -85,7 +97,12 @@ class SampahTransaksi extends Model
 
                 Log::debug("SampahTransaksi DELETED (Event Fired). ID: {$sampahTransaksi->id}, Sampah ID: {$sampahTransaksi->sampah_id}, Original Jumlah: {$sampahTransaksi->jumlah}, Original Tipe: {$sampahTransaksi->tipe}, Reverse Tipe: {$reverseTipe}");
 
+                // Apply stock change and save the Sampah model to persist stock update
                 self::applyStockChange($sampahTransaksi, $sampahTransaksi->jumlah, $reverseTipe);
+                $sampah = Sampah::find($sampahTransaksi->sampah_id);
+                if ($sampah) {
+                    $sampah->saveQuietly();
+                }
             });
         });
     }

@@ -23,7 +23,7 @@ new #[Layout('components.layouts.auth')] class extends Component {
     /**
      * Handle an incoming authentication request.
      */
-    public function login(): void
+     public function login(): void
     {
         $this->validate();
 
@@ -40,8 +40,10 @@ new #[Layout('components.layouts.auth')] class extends Component {
         RateLimiter::clear($this->throttleKey());
         Session::regenerate();
 
-        $this->redirectIntended(default: route('dashboard', absolute: false), navigate: true);
+        // Ubah redirect ke path Filament yang sekarang jadi /dashboard
+        $this->redirectIntended(default: '/', navigate: true);
     }
+
 
     /**
      * Ensure the authentication request is not rate limited.
@@ -72,55 +74,69 @@ new #[Layout('components.layouts.auth')] class extends Component {
         return Str::transliterate(Str::lower($this->email).'|'.request()->ip());
     }
 }; ?>
+<div class="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 px-4 py-8">
+    <div class="w-full max-w-6xl bg-white dark:bg-zinc-800 shadow-lg rounded-lg overflow-hidden grid grid-cols-1 md:grid-cols-2">
+        <div class="hidden md:flex flex-col items-center justify-center bg-green-600 text-white p-10">
+            <h2 class="text-3xl font-bold mb-4">Selamat Datang Kembali!</h2>
+            <p class="text-sm text-green-100 text-center">
+                Masukkan kredensial Anda untuk mengakses akun dan jelajahi lebih lanjut.
+            </p>
+            {{-- Mengganti ilustrasi default dengan ilustrasi dari desain Anda --}}
+            <img src="{{ asset('storage/images/enviro.png') }}"
+                 alt="Ilustrasi Bank Sampah" class="mt-8 w-full max-w-sm md:max-w-md h-auto object-contain">
+        </div>
 
-<div class="flex flex-col gap-6">
-    <x-auth-header :title="__('Log in to your account')" :description="__('Enter your email and password below to log in')" />
+        <div class="p-8">
+            <x-auth-header :title="__('Masuk ke akun Anda')" :description="__('Masukkan email dan kata sandi Anda di bawah untuk masuk')" />
+            
+            <x-auth-session-status class="text-center mb-4" :status="session('status')" />
 
-    <!-- Session Status -->
-    <x-auth-session-status class="text-center" :status="session('status')" />
+            <form wire:submit="login" class="flex flex-col gap-6">
+                <flux:input
+                    wire:model="email"
+                    :label="__('Alamat Email')"
+                    type="email"
+                    required
+                    autofocus
+                    autocomplete="email"
+                    placeholder="email@example.com"
+                />
 
-    <form wire:submit="login" class="flex flex-col gap-6">
-        <!-- Email Address -->
-        <flux:input
-            wire:model="email"
-            :label="__('Email address')"
-            type="email"
-            required
-            autofocus
-            autocomplete="email"
-            placeholder="email@example.com"
-        />
+                <div class="relative">
+                    <flux:input
+                        wire:model="password"
+                        :label="__('Kata Sandi')"
+                        type="password"
+                        required
+                        autocomplete="current-password"
+                        placeholder="••••••••"
+                    />
 
-        <!-- Password -->
-        <div class="relative">
-            <flux:input
-                wire:model="password"
-                :label="__('Password')"
-                type="password"
-                required
-                autocomplete="current-password"
-                :placeholder="__('Password')"
-            />
+                    @if (Route::has('password.request'))
+                        <flux:link class="absolute right-0 top-0 text-sm text-green-600 dark:text-green-400 hover:underline" :href="route('password.request')" wire:navigate>
+                            {{ __('Lupa kata sandi Anda?') }}
+                        </flux:link>
+                    @endif
+                </div>
 
-            @if (Route::has('password.request'))
-                <flux:link class="absolute right-0 top-0 text-sm" :href="route('password.request')" wire:navigate>
-                    {{ __('Forgot your password?') }}
-                </flux:link>
+                <flux:checkbox wire:model="remember" :label="__('Ingat saya')" />
+
+                <div>
+                    {{-- TOMBOL MASUK DIBUAT HIJAU --}}
+                    <flux:button type="submit" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" variant="primary">
+                        {{ __('Masuk') }}
+                    </flux:button>
+                </div>
+            </form>
+
+            @if (Route::has('register'))
+                <div class="mt-4 space-x-1 text-center text-sm text-zinc-600 dark:text-zinc-400">
+                    {{ __("Belum punya akun?") }}
+                    <flux:link :href="route('register')" wire:navigate class="text-green-600 dark:text-green-400 hover:underline">
+                        {{ __('Daftar') }}
+                    </flux:link>
+                </div>
             @endif
         </div>
-
-        <!-- Remember Me -->
-        <flux:checkbox wire:model="remember" :label="__('Remember me')" />
-
-        <div class="flex items-center justify-end">
-            <flux:button variant="primary" type="submit" class="w-full">{{ __('Log in') }}</flux:button>
-        </div>
-    </form>
-
-    @if (Route::has('register'))
-        <div class="space-x-1 text-center text-sm text-zinc-600 dark:text-zinc-400">
-            {{ __('Don\'t have an account?') }}
-            <flux:link :href="route('register')" wire:navigate>{{ __('Sign up') }}</flux:link>
-        </div>
-    @endif
+    </div>
 </div>

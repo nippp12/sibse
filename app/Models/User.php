@@ -10,6 +10,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Spatie\Permission\Traits\HasRoles; // Pastikan ini diimpor dengan benar
 
+/**
+ * @mixin \Spatie\Permission\Traits\HasRoles
+ * 
+ * @method bool hasRole(string|array $roles)
+ */
 class User extends Authenticatable // Perhatikan, tidak perlu implement MustVerifyEmail jika tidak digunakan
 {
     use HasFactory, Notifiable, HasRoles;
@@ -28,7 +33,9 @@ class User extends Authenticatable // Perhatikan, tidak perlu implement MustVeri
         'alamat',
         'no_hp',
         'saldo',
-        'role_id', // Ini harus ada di fillable jika Anda mengelola role via role_id
+        // 'role_id', // Ini harus ada di fillable jika Anda mengelola role via role_id
+                      // Namun, jika Anda menggunakan Spatie\Permission, biasanya role tidak disimpan di kolom role_id
+                      // melainkan melalui tabel pivot roles. Jadi, pastikan ini sesuai dengan implementasi Anda.
     ];
 
     /**

@@ -16,6 +16,8 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Actions\Action; // Pastikan ini di-import
+use App\Models\User; // Pastikan model User diimpor
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Database\Eloquent\Builder;
 
 class SampahResource extends Resource
@@ -93,7 +95,9 @@ class SampahResource extends Resource
                             ->disabled()
                             ->dehydrated(false)
                             ->readOnly()
+                            // Tambahkan PHPDoc hint untuk $record di sini
                             ->suffix(fn (?Sampah $record) => $record?->satuan->nama ?? '')
+                            // Tambahkan PHPDoc hint untuk $record di sini
                             ->visible(fn (?Sampah $record) => $record?->exists ?? false),
 
                         Textarea::make('deskripsi')
@@ -108,6 +112,10 @@ class SampahResource extends Resource
 
     public static function table(Tables\Table $table): Tables\Table
     {
+        // Mendapatkan user yang sedang login dan memberikan PHPDoc hint
+        /** @var \App\Models\User|null $currentUser */ // PHPDoc hint untuk $currentUser
+        $currentUser = Auth::user();
+        
         return $table
             ->columns([
                 Tables\Columns\ImageColumn::make('image')
@@ -129,9 +137,11 @@ class SampahResource extends Resource
                 TextColumn::make('stock')
                     ->label('Stok')
                     ->numeric()
-                    ->sortable(),
+                    ->sortable()
+                    // Menggunakan $currentUser yang sudah di-hint
+                    ->hidden(fn () => $currentUser?->hasRole('nasabah')), 
                     // ->formatStateUsing(fn (string $state, Sampah $record): string =>
-                    //     $state . ' ' . ($record->satuan->nama ?? '')),
+                    //      $state . ' ' . ($record->satuan->nama ?? '')),
 
                 TextColumn::make('satuan.nama')
                     ->label('Satuan')
@@ -179,8 +189,13 @@ class SampahResource extends Resource
                     ->icon('heroicon-o-plus-circle') // Ikon untuk penambahan
                     ->color('success')
                     ->url(fn (Sampah $record): string =>
-                        SampahTransaksiResource::getUrl('create', ['sampah_id' => $record->id])
-                    ),
+                        // Pastikan SampahTransaksiResource diimpor jika diperlukan
+                        // use App\Filament\Resources\SampahTransaksiResource;
+                        \App\Filament\Resources\SampahTransaksiResource::getUrl('create', ['sampah_id' => $record->id])
+                    )
+                    ->hidden(function () use ($currentUser) { // Menggunakan $currentUser yang sudah di-hint
+                        return !$currentUser || ($currentUser instanceof User && $currentUser->hasRole('nasabah'));
+                    }),
                 Tables\Actions\DeleteAction::make(),
             ])
             ->bulkActions([

@@ -126,16 +126,19 @@ class Penjualan extends Model
 
         // PENTING: Penanganan penghapusan cascading untuk relasi polimorfik
         static::deleting(function (Penjualan $penjualan) {
-            // Batalkan transaksi hanya jika statusnya 'selesai' saat dihapus
             if ($penjualan->status === 'selesai') {
                 Log::debug('Penjualan ID: ' . $penjualan->id . ' dengan status selesai sedang dihapus. Membatalkan transaksi terkait.');
-                DB::transaction(function () use ($penjualan) { // Transaksi baru untuk memastikan atomicity penghapusan
-                    self::cancelPenjualanTransaction($penjualan); // Batalkan transaksi kas
-
-                    // Hapus semua SampahTransaksi yang terkait dengan penjualan ini
-                    // Ini akan memicu event 'deleted' di SampahTransaksi untuk membalikkan stok
-                    $penjualan->sampahTransaksi()->delete(); // Menggunakan relasi morphMany untuk menghapus
-                    Log::debug('Semua SampahTransaksi terkait Penjualan ID: ' . $penjualan->id . ' dihapus.');
+                DB::transaction(function () use ($penjualan) {
+                    self::cancelPenjualanTransaction($penjualan);
+        
+                    // Hapus semua SampahTransaksi yang terkait dengan penjualan ini secara eksplisit.
+                    // Ini akan memastikan bahwa event 'deleted' di model SampahTransaksi terpicu untuk setiap record.
+                    Log::debug('Penjualan::deleting - Mencoba menghapus SampahTransaksi terkait secara eksplisit.');
+                    $penjualan->sampahTransaksi()->get()->each(function (SampahTransaksi $st) {
+                        Log::debug('Penjualan::deleting - Memanggil delete() pada SampahTransaksi ID: ' . $st->id);
+                        $st->delete(); // Ini akan memicu SampahTransaksi::deleted event
+                    });
+                    Log::debug('Penjualan::deleting - Penghapusan SampahTransaksi terkait selesai.');
                 });
             }
         });
