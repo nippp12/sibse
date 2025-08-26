@@ -25,12 +25,28 @@ jobs:
         with:
           php-version: '8.4'
 
-      - name: Add Flux Credentials Loaded From ENV
+      - name: Check if Flux credentials are available
+        id: check_flux_credentials
+        run: |
+          if [ -n "${{ secrets.FLUX_USERNAME }}" ] && [ -n "${{ secrets.FLUX_LICENSE_KEY }}" ]; then
+            echo "flux_credentials_available=true" >> $GITHUB_OUTPUT
+          else
+            echo "flux_credentials_available=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Add Flux Credentials (if available)
+        if: steps.check_flux_credentials.outputs.flux_credentials_available == 'true'
         run: composer config http-basic.composer.fluxui.dev "${{ secrets.FLUX_USERNAME }}" "${{ secrets.FLUX_LICENSE_KEY }}"
 
       - name: Install Dependencies
         run: |
-          composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist
+          # Skip Flux package if credentials are not available
+          if [ "${{ steps.check_flux_credentials.outputs.flux_credentials_available }}" = "false" ]; then
+            echo "Flux credentials not available, skipping Flux package installation"
+            composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist --ignore-platform-req=ext-redis
+          else
+            composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist
+          fi
           npm install
 
       - name: Run Pint
